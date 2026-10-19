@@ -25,6 +25,7 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
 
 html, body { overscroll-behavior-y: none; }
 
@@ -311,3 +312,23 @@ fieldset.who-field legend { font-size: 14px; color: var(--muted); padding: 0 0 6
 .family-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .family-list li { display: flex; gap: 8px; align-items: center; }
 .family-list input[type=color] { width: 48px; height: 44px; padding: 2px; flex-shrink: 0; }
+
+/* ---------- Inloggen en beheer ---------- */
+
+.me-list .role { margin-left: auto; font-size: 13px; color: var(--muted); }
+.me-extras { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; }
+#whoStep, #pinStep { display: flex; flex-direction: column; gap: 12px; }
+#loginForm input[name=pin], #loginForm input[name=pin2] { font-size: 24px; letter-spacing: 8px; text-align: center; }
+
+.family-list li { flex-direction: column; align-items: stretch; gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.family-main { display: flex; gap: 8px; align-items: center; }
+.family-options { display: flex; gap: 16px; padding-left: 56px; }
+label.check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
+label.check input { width: 20px; height: 20px; min-height: 0; }
+
+#repeatDeleteDialog form button { width: 100%; }
+button.danger-fill { background: var(--danger); color: #fff; font-weight: 600; }
+
+.days { display: flex; gap: 6px; flex-wrap: wrap; }
+.days button { min-width: 44px; padding: 8px 0; border-radius: 999px; background: transparent; border: 1px solid var(--line); }
+.days button[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }

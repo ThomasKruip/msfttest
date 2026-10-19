@@ -2,82 +2,139 @@
 
 Een gedeelde agenda voor het hele gezin, gemaakt om op de telefoon te gebruiken.
 
-- **Iedereen zijn eigen invoer:** elk gezinslid kiest op zijn eigen telefoon één keer
-  "Wie ben jij?". Nieuwe activiteiten komen dan automatisch op zijn of haar naam.
+- **Ieder zijn eigen invoer:** elk gezinslid logt op zijn eigen telefoon in met een
+  eigen **pincode**. Nieuwe activiteiten komen automatisch op zijn of haar naam.
+- **Alleen je eigen items aanpassen:** wat een ander heeft ingevoerd kun je zien en
+  beluisteren, maar niet bewerken of verwijderen.
 - **Voor wie:** kies per activiteit één of meer gezinsleden, of **Gezamenlijk** voor iets
   dat het hele gezin samen doet.
-- **Spraakberichten:** neem een bericht op en zet het op een willekeurige datum
-  (bijvoorbeeld een boodschappenlijstje of een herinnering).
-- **Filter per persoon:** bovenaan tik je op een naam om alleen diens activiteiten
-  (plus de gezamenlijke) te zien.
-- Elk gezinslid heeft een eigen **kleur**; gezamenlijke activiteiten zijn oranje.
-- Bij elk item staat **wie het heeft ingevoerd**. Alleen die persoon kan het
-  **bewerken of verwijderen**; de anderen kunnen het wel zien en beluisteren.
+- **Herhalen:** elke dag, elke week (op gekozen dagen, bijv. ma en do), om de week,
+  elke maand of elk jaar, eventueel tot en met een einddatum.
+- **Spraakberichten:** neem een bericht op en zet het op een willekeurige datum.
+- **Filter per persoon** bovenaan, en een eigen **kleur** per gezinslid (gezamenlijk = oranje).
+- **Twee beheerders:** standaard zijn Papa en Mama beheerder (zie hieronder).
 
-Standaard zijn er vier gezinsleden (Papa, Mama, Kind 1, Kind 2). Namen en kleuren
-pas je aan via de ronde knop rechtsboven → *Namen en kleuren aanpassen*.
+## Inloggen en pincodes
 
-## Installeren
+- De eerste keer kiest iedereen zijn naam en **bedenkt zelf een pincode** (4 tot 8 cijfers).
+  Laat iedereen dat meteen doen: zolang iemand nog geen pincode heeft, kan een ander die kiezen.
+- Daarna heb je je pincode nodig om op een telefoon in te loggen of naar een ander
+  gezinslid te wisselen. De telefoon blijft een jaar lang ingelogd.
+- Na 5 verkeerde pogingen wordt inloggen voor dat gezinslid even geblokkeerd
+  (en steeds langer bij nog meer foute pogingen).
+- Je eigen pincode wijzig je via de ronde knop rechtsboven → *Mijn pincode wijzigen*.
 
-De agenda draait op één computer thuis (pc, laptop of Raspberry Pi) die aan staat.
-Alle telefoons in hetzelfde wifi-netwerk gebruiken die. Er zijn geen extra pakketten nodig.
+## Beheerders
+
+Standaard zijn **Papa en Mama** beheerder. Alleen beheerders kunnen, via de ronde knop
+rechtsboven → *Gezinsleden beheren*:
+
+- gezinsleden toevoegen, verwijderen of een andere naam/kleur geven;
+- kiezen wie beheerder is;
+- de **pincode wissen** van iemand die hem vergeten is. Die kiest bij de volgende keer
+  inloggen een nieuwe.
+
+Is een beheerder zijn eigen pincode vergeten, dan kan de andere beheerder die wissen.
+Zijn beide beheerders hem kwijt, stop dan de agenda en voer op de computer met de agenda uit:
+
+```bash
+npm run pincode-wissen -- Papa
+```
+
+## Herhalende activiteiten
+
+Kies bij een activiteit onder **Herhalen** hoe vaak. Bij *Elke week* en *Om de week* tik je
+de dagen aan. Tik op een herhalende activiteit om de hele reeks te bewerken. Bij
+**Verwijderen** kies je *Alleen deze keer* (bijv. een training die een keer niet doorgaat)
+of *De hele reeks*.
+
+## Installeren op een computer thuis
 
 1. Installeer [Node.js](https://nodejs.org) (versie 18 of nieuwer).
-2. Maak eenmalig een certificaat, zodat telefoons de microfoon mogen gebruiken:
+2. Download deze map en open er een opdrachtvenster in.
+3. Kies hoe je de agenda wilt gebruiken:
+   - **Alleen thuis (wifi):** maak eenmalig een certificaat met `npm run certificaat`
+     en start de agenda met `npm start`. Het adres voor de telefoons staat in het venster,
+     bijvoorbeeld `https://192.168.1.20:3000`. De eerste keer geeft de telefoon een
+     waarschuwing; kies *Geavanceerd → Doorgaan*.
+   - **Ook buitenshuis:** zie hieronder.
+
+## Ook buitenshuis gebruiken
+
+Er zijn twee manieren. In beide gevallen krijg je een vast `https://`-adres met een echt
+certificaat (geen waarschuwing), en werken opnemen en "op beginscherm zetten" overal.
+
+### Manier 1: thuis laten draaien + Tailscale Funnel (gratis, aanrader)
+
+De agenda en alle opnames blijven op je eigen computer; Tailscale maakt hem veilig
+bereikbaar via internet. Nadeel: de computer moet aan staan.
+
+1. Maak een gratis account op <https://tailscale.com> en installeer Tailscale op de computer met de agenda.
+2. Start de agenda in online-stand: `npm run online`
+3. Zet in een tweede opdrachtvenster de agenda open naar internet:
 
    ```bash
-   npm run certificaat
+   tailscale funnel --bg 3000
    ```
 
-3. Start de agenda:
+   De eerste keer vraagt Tailscale je om Funnel aan te zetten; volg de link die verschijnt.
+4. Tailscale toont je adres, iets als `https://mijn-pc.tail1234.ts.net`. Open dat op de
+   telefoons en zet het op het beginscherm.
+
+### Manier 2: echt online bij Fly.io (computer thuis hoeft niet aan)
+
+Fly.io draait de agenda in een datacenter in Amsterdam, met een blijvende schijf voor je
+gegevens. Hiervoor heb je een account met betaalgegevens nodig; voor zo'n kleine app zijn
+de kosten laag (enkele euro's per maand of minder), maar controleer de actuele prijzen op
+<https://fly.io/docs/about/pricing/>.
+
+1. Installeer het programma `flyctl`: <https://fly.io/docs/flyctl/install/> en log in met `fly auth login`.
+2. Kies in `fly.toml` bij `app = "..."` een eigen, unieke naam, bijvoorbeeld `agenda-familie-jansen`.
+3. Voer in deze map uit:
 
    ```bash
-   npm start
+   fly apps create agenda-familie-jansen
+   fly volumes create agenda_data --size 1 --region ams
+   fly deploy
    ```
 
-   Je ziet dan het adres voor de telefoons, bijvoorbeeld
-   `Op de telefoon (zelfde wifi): https://192.168.1.20:3000`.
+4. De agenda staat nu op `https://agenda-familie-jansen.fly.dev`.
+
+Een nieuwe versie zet je online met `fly deploy`; de gegevens op de schijf blijven bewaard.
+Een vergeten pincode van beide beheerders wis je daar met
+`fly ssh console -C "node scripts/pincode-wissen.js Papa"` en daarna `fly apps restart`.
+
+> Gratis diensten zonder blijvende schijf (zoals het gratis plan van Render) zijn niet
+> geschikt: daar verdwijnen afspraken en opnames na een herstart.
 
 ## Op de telefoon zetten
 
-1. Open het adres in de browser van de telefoon (Chrome op Android, Safari op iPhone).
-2. De eerste keer krijg je een waarschuwing over het certificaat, omdat je het zelf hebt
-   gemaakt. Kies **Geavanceerd → Doorgaan** (Android) of **Toon details → bezoek deze website** (iPhone).
-3. Kies wie je bent.
-4. Zet de agenda op je beginscherm, zodat hij werkt als een gewone app:
+1. Open het adres in de browser (Chrome op Android, Safari op iPhone).
+2. Kies je naam en vul je pincode in (of bedenk er een).
+3. Zet de agenda op het beginscherm:
    - **Android:** menu (⋮) → *Toevoegen aan startscherm*
    - **iPhone:** deelknop → *Zet op beginscherm*
-
-Herhaal dit op de telefoon van elk gezinslid.
-
-> Zonder certificaat (`http://`) werkt alles, behalve direct opnemen in de app.
-> Je kunt dan wel een spraakmemo kiezen die je met de telefoon hebt opgenomen.
-
-## Gebruik
-
-- Tik op een dag om te zien wat er die dag gepland staat. Veeg over de kalender om van maand te wisselen.
-- **+ Activiteit**: wat, voor wie, datum en tijd. Tik later op een eigen activiteit om hem te bewerken of te verwijderen.
-- **🎤 Spraakbericht**: kies voor wie, druk op de rode knop, spreek in, druk nogmaals om te stoppen,
-  luister terug en tik op *Opslaan*.
-- Tik rechtsboven op je eigen letter om van gezinslid te wisselen.
-- De agenda ververst vanzelf, zodat je ziet wat de anderen hebben toegevoegd.
 
 ## Instellingen
 
 | Variabele              | Standaard | Betekenis                                      |
 |------------------------|-----------|------------------------------------------------|
 | `PORT`                 | `3000`    | Poort waarop de agenda draait                  |
-| `DATA_DIR`             | `./data`  | Map waar afspraken en opnames worden bewaard   |
-| `TLS_CERT` / `TLS_KEY` | –         | Eigen certificaat en sleutel in plaats van die uit `data/cert` |
+| `DATA_DIR`             | `./data`  | Map waar alle gegevens worden bewaard          |
+| `TLS_CERT` / `TLS_KEY` | –         | Eigen certificaat in plaats van dat uit `data/cert` |
+| `NO_TLS`               | –         | Zet op `1` als een host of tunnel https regelt (zelfde als `npm run online`) |
 
 ## Gegevens en back-up
 
-- Activiteiten: `data/events.json`
-- Gezinsleden: `data/family.json`
-- Spraakberichten: `data/audio/`
-- Certificaat: `data/cert/`
+Alles staat in de map `data`:
 
-Maak voor een back-up gewoon een kopie van de map `data`.
+- `events.json`: activiteiten
+- `family.json`: gezinsleden (pincodes alleen versleuteld)
+- `sessions.json`: ingelogde telefoons
+- `audio/`: spraakberichten
+- `cert/`: certificaat voor thuisgebruik
+
+Maak voor een back-up een kopie van de map `data`. Bij Fly.io: `fly ssh sftp get /data/events.json`.
 
 ## Tests
 

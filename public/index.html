@@ -47,13 +47,65 @@
     </section>
   </main>
 
-  <!-- Wie ben jij? -->
+  <!-- Inloggen: wie ben jij + pincode -->
   <dialog id="meDialog">
+    <form id="loginForm" method="dialog">
+      <div id="whoStep">
+        <h3>Wie ben jij?</h3>
+        <p class="hint">Kies je naam en vul je pincode in. Deze telefoon onthoudt daarna wie je bent.</p>
+        <div id="meList" class="me-list"></div>
+      </div>
+      <div id="pinStep" hidden>
+        <h3 id="pinTitle"></h3>
+        <p id="pinHint" class="hint"></p>
+        <label><span id="pinLabel">Pincode</span>
+          <input name="pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8"></label>
+        <label id="pin2Row">Herhaal je nieuwe pincode
+          <input name="pin2" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8"></label>
+        <p class="error" hidden></p>
+        <div class="dialog-buttons">
+          <button type="button" id="pinBack" class="ghost">Terug</button>
+          <span class="spacer"></span>
+          <button type="submit" class="primary">Inloggen</button>
+        </div>
+      </div>
+      <div id="meExtras" class="me-extras" hidden>
+        <button type="button" id="pinChangeBtn" class="link">Mijn pincode wijzigen</button>
+        <button type="button" id="familyBtn" class="link">Gezinsleden beheren</button>
+        <button type="button" id="logoutBtn" class="link">Afmelden op deze telefoon</button>
+        <span class="spacer"></span>
+        <button type="button" class="ghost" data-close>Sluiten</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Eigen pincode wijzigen -->
+  <dialog id="pinDialog">
+    <form id="pinForm" method="dialog">
+      <h3>Pincode wijzigen</h3>
+      <label>Huidige pincode
+        <input name="oldPin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8" required></label>
+      <label>Nieuwe pincode (4 tot 8 cijfers)
+        <input name="newPin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8" required></label>
+      <label>Herhaal nieuwe pincode
+        <input name="newPin2" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8" required></label>
+      <p class="error" hidden></p>
+      <div class="dialog-buttons">
+        <span class="spacer"></span>
+        <button type="button" class="ghost" data-close>Annuleren</button>
+        <button type="submit" class="primary">Opslaan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Herhalende activiteit verwijderen -->
+  <dialog id="repeatDeleteDialog">
     <form method="dialog">
-      <h3>Wie ben jij?</h3>
-      <p class="hint">Kies je naam. Deze telefoon onthoudt dat, zodat jouw activiteiten automatisch op jouw naam komen.</p>
-      <div id="meList" class="me-list"></div>
-      <button type="button" id="familyBtn" class="link">Namen en kleuren aanpassen</button>
+      <h3>Herhalende activiteit verwijderen</h3>
+      <p class="hint">Wil je alleen deze keer verwijderen, of de hele reeks?</p>
+      <button value="once" class="ghost">Alleen deze keer</button>
+      <button value="all" class="danger-fill">De hele reeks</button>
+      <button value="cancel" class="ghost">Annuleren</button>
     </form>
   </dialog>
 
@@ -66,11 +118,26 @@
         <legend>Voor wie</legend>
         <div class="who"></div>
       </fieldset>
-      <label>Datum <input name="date" type="date" required></label>
+      <label><span id="dateLabel">Datum</span> <input name="date" type="date" required></label>
       <div class="row">
         <label>Van <input name="time" type="time"></label>
         <label>Tot <input name="endTime" type="time"></label>
       </div>
+      <label>Herhalen
+        <select name="freq">
+          <option value="">Niet</option>
+          <option value="dag">Elke dag</option>
+          <option value="week">Elke week</option>
+          <option value="2weken">Om de week</option>
+          <option value="maand">Elke maand</option>
+          <option value="jaar">Elk jaar</option>
+        </select>
+      </label>
+      <fieldset id="repeatDays" class="who-field" hidden>
+        <legend>Op</legend>
+        <div class="days"></div>
+      </fieldset>
+      <label id="repeatUntil" hidden>Tot en met (leeg = altijd) <input name="until" type="date"></label>
       <label>Notities <textarea name="notes" rows="2" maxlength="2000"></textarea></label>
       <p class="error" hidden></p>
       <div class="dialog-buttons">

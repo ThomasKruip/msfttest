@@ -1,12 +1,14 @@
 {
   "name": "gezinsagenda",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Gezinsagenda met afspraken en gesproken berichten",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test",
-    "certificaat": "node scripts/certificaat.js"
+    "online": "node server.js --online",
+    "certificaat": "node scripts/certificaat.js",
+    "pincode-wissen": "node scripts/pincode-wissen.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"

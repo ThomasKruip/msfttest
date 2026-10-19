@@ -1,7 +1,7 @@
 // Service worker: maakt de agenda installeerbaar en laat de app ook openen zonder verbinding.
 // Afspraken en spraakberichten komen altijd vers van de server.
 
-const CACHE = 'gezinsagenda-v2';
+const CACHE = 'gezinsagenda-v3';
 const APP_FILES = ['/', '/index.html', '/style.css', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png'];
 
 self.addEventListener('install', (event) => {

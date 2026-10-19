@@ -2,15 +2,17 @@
 
 const $ = (sel) => document.querySelector(sel);
 const SHARED_COLOR = '#f08c00';
-const STORAGE_ME = 'gezinsagenda.ik';
 const STORAGE_FILTER = 'gezinsagenda.filter';
+const DAY_NAMES = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]; // maandag eerst
+const FREQ_LABEL = { dag: 'Elke dag', week: 'Elke week', '2weken': 'Om de week', maand: 'Elke maand', jaar: 'Elk jaar' };
 
 const state = {
   month: startOfMonth(new Date()),
   selected: toKey(new Date()),
   events: [],
   family: [],
-  me: storageGet(STORAGE_ME),
+  me: null, // id van het ingelogde gezinslid
   filter: storageGet(STORAGE_FILTER) || 'all',
   editing: null,
 };
@@ -40,6 +42,7 @@ function el(tag, attrs = {}, ...children) {
 
 const member = (id) => state.family.find((m) => m.id === id);
 const memberName = (id) => member(id)?.name || 'onbekend';
+const isAdmin = () => !!member(state.me)?.admin;
 
 function avatar(m, cls = 'avatar') {
   return el('span', { class: cls, style: { '--c': m.color }, 'aria-hidden': 'true' }, m.name.charAt(0).toUpperCase());
@@ -59,6 +62,14 @@ function chipBackground(ev) {
   return `linear-gradient(90deg, ${colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(', ')})`;
 }
 
+function repeatText(repeat) {
+  if (!repeat) return '';
+  let text = FREQ_LABEL[repeat.freq];
+  if (repeat.days) text += ' op ' + WEEK_ORDER.filter((d) => repeat.days.includes(d)).map((d) => DAY_NAMES[d]).join(', ');
+  if (repeat.until) text += ' t/m ' + fromKey(repeat.until).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+  return text;
+}
+
 function isVisible(ev) {
   return state.filter === 'all' || ev.shared || ev.persons.includes(state.filter);
 }
@@ -72,14 +83,17 @@ function isMine(ev) {
 async function api(method, url, body, headers = {}) {
   const res = await fetch(url, {
     method,
-    headers: {
-      ...(body && !(body instanceof Blob) ? { 'Content-Type': 'application/json' } : headers),
-      'X-Gezinslid': state.me || '',
-    },
+    headers: body && !(body instanceof Blob) ? { 'Content-Type': 'application/json' } : headers,
     body: body instanceof Blob ? body : body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && !url.startsWith('/api/login') && !url.startsWith('/api/pin')) {
+    // Sessie verlopen of gewist (bijvoorbeeld omdat een beheerder de pincode heeft gewist).
+    state.me = null;
+    document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+    openMeDialog();
+  }
   if (!res.ok) throw new Error(data.error || `Fout ${res.status}`);
   return data;
 }
@@ -102,6 +116,7 @@ function visibleRange() {
 }
 
 async function loadEvents() {
+  if (!state.me) return render();
   const { start, end } = visibleRange();
   state.events = await api('GET', `/api/events?from=${toKey(start)}&to=${toKey(end)}`);
   render();
@@ -122,7 +137,7 @@ function renderHeader() {
   const btn = $('#meBtn');
   btn.textContent = me ? me.name.charAt(0).toUpperCase() : '?';
   btn.style.setProperty('--c', me?.color || '#868e96');
-  btn.title = me ? `Je bent ${me.name} (tik om te wisselen)` : 'Kies wie je bent';
+  btn.title = me ? `Je bent ${me.name}` : 'Inloggen';
 }
 
 function renderFilters() {
@@ -185,13 +200,14 @@ function renderDay() {
   const list = $('#dayList');
   list.replaceChildren();
   if (!items.length) {
-    list.append(el('li', { class: 'empty' }, 'Nog niets gepland op deze dag.'));
+    list.append(el('li', { class: 'empty' }, state.me ? 'Nog niets gepland op deze dag.' : 'Log in om de agenda te zien.'));
     return;
   }
   for (const e of items) {
     const when = e.time ? (e.endTime ? `${e.time} – ${e.endTime}` : e.time) : 'Hele dag';
     const meta = [
       when,
+      e.repeat ? `🔁 ${repeatText(e.repeat)}` : null,
       e.type === 'spraak' && e.duration ? `🎤 ${formatDuration(e.duration)}` : null,
       e.createdBy ? `door ${memberName(e.createdBy)}` : null,
     ].filter(Boolean).join(' · ');
@@ -264,30 +280,124 @@ function whoPicker(container, initial) {
   return () => ({ shared: value.shared, persons: [...value.persons] });
 }
 
-// ---------- Wie ben ik ----------
+// ---------- Inloggen met pincode ----------
+
+let loginMember = null;
 
 function openMeDialog() {
-  const list = $('#meList');
-  list.replaceChildren(...state.family.map((m) => el('button', {
+  const loggedIn = !!member(state.me);
+  loginMember = null;
+  $('#whoStep').hidden = false;
+  $('#pinStep').hidden = true;
+  $('#meExtras').hidden = !loggedIn;
+  $('#familyBtn').hidden = !isAdmin();
+  $('#meList').replaceChildren(...state.family.map((m) => el('button', {
     type: 'button',
     'aria-pressed': String(m.id === state.me),
-    onclick: () => {
-      state.me = m.id;
-      storageSet(STORAGE_ME, m.id);
-      $('#meDialog').close();
-      render();
-    },
-  }, avatar(m, 'avatar big'), m.name)));
+    onclick: () => (m.id === state.me ? $('#meDialog').close() : showPinStep(m)),
+  }, avatar(m, 'avatar big'), m.name, m.admin ? el('span', { class: 'role' }, 'beheerder') : null)));
   if (!$('#meDialog').open) $('#meDialog').showModal();
 }
 
-// Zonder naam kun je het venster niet wegklikken.
+function showPinStep(m) {
+  loginMember = m;
+  const form = $('#loginForm');
+  form.pin.value = '';
+  form.pin2.value = '';
+  showError(form);
+  $('#whoStep').hidden = true;
+  $('#meExtras').hidden = true;
+  $('#pinStep').hidden = false;
+  $('#pinTitle').textContent = m.hasPin ? `Hoi ${m.name}!` : `Welkom ${m.name}!`;
+  $('#pinHint').textContent = m.hasPin
+    ? 'Vul je pincode in.'
+    : 'Je hebt nog geen pincode. Kies er nu een van 4 tot 8 cijfers en onthoud hem goed.';
+  $('#pinLabel').textContent = m.hasPin ? 'Pincode' : 'Nieuwe pincode';
+  $('#pin2Row').hidden = m.hasPin;
+  form.pin.focus();
+}
+
+$('#pinBack').addEventListener('click', openMeDialog);
+
+$('#loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  if (!loginMember) return;
+  const pin = form.pin.value.trim();
+  if (!/^\d{4,8}$/.test(pin)) return showError(form, 'Een pincode bestaat uit 4 tot 8 cijfers.');
+  if (!loginMember.hasPin && pin !== form.pin2.value.trim()) return showError(form, 'De twee pincodes zijn niet hetzelfde.');
+  try {
+    const me = await api('POST', '/api/login', { id: loginMember.id, pin });
+    state.me = me.id;
+    state.family = await api('GET', '/api/family');
+    $('#meDialog').close();
+    await loadEvents();
+  } catch (err) {
+    showError(form, err.message);
+    form.pin.value = '';
+    form.pin.focus();
+  }
+});
+
+// Zonder in te loggen kun je het venster niet wegklikken.
 $('#meDialog').addEventListener('cancel', (e) => { if (!member(state.me)) e.preventDefault(); });
 $('#meBtn').addEventListener('click', openMeDialog);
+
+$('#logoutBtn').addEventListener('click', async () => {
+  await api('POST', '/api/logout').catch(() => {});
+  state.me = null;
+  state.events = [];
+  render();
+  openMeDialog();
+});
+
+$('#pinChangeBtn').addEventListener('click', () => {
+  $('#meDialog').close();
+  $('#pinForm').reset();
+  showError($('#pinForm'));
+  $('#pinDialog').showModal();
+});
+
+$('#pinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const { oldPin, newPin, newPin2 } = Object.fromEntries(new FormData(form));
+  if (newPin !== newPin2) return showError(form, 'De twee nieuwe pincodes zijn niet hetzelfde.');
+  try {
+    await api('POST', '/api/pin', { oldPin, newPin });
+    $('#pinDialog').close();
+    alert('Je pincode is gewijzigd.');
+  } catch (err) {
+    showError(form, err.message);
+  }
+});
 
 // ---------- Activiteiten ----------
 
 let getEventWho;
+let repeatDays = new Set();
+
+function drawRepeatDays() {
+  $('#repeatDays .days').replaceChildren(...WEEK_ORDER.map((d) => el('button', {
+    type: 'button',
+    'aria-pressed': String(repeatDays.has(d)),
+    onclick: () => {
+      repeatDays.has(d) ? repeatDays.delete(d) : repeatDays.add(d);
+      drawRepeatDays();
+    },
+  }, DAY_NAMES[d])));
+}
+
+function updateRepeatFields() {
+  const form = $('#eventForm');
+  const freq = form.freq.value;
+  const weekly = freq === 'week' || freq === '2weken';
+  if (weekly && !repeatDays.size && form.date.value) repeatDays.add(fromKey(form.date.value).getDay());
+  $('#repeatDays').hidden = !weekly;
+  $('#repeatUntil').hidden = !freq;
+  $('#dateLabel').textContent = freq ? 'Begindatum' : 'Datum';
+  drawRepeatDays();
+}
 
 function openEventDialog(ev) {
   const form = $('#eventForm');
@@ -298,26 +408,39 @@ function openEventDialog(ev) {
   $('#eventDelete').hidden = !ev;
   getEventWho = whoPicker(form.querySelector('.who'), ev || { persons: state.me ? [state.me] : [] });
   form.title.value = ev?.title || '';
-  form.date.value = ev?.date || state.selected;
+  // Bij een herhaling bewerk je de hele reeks, dus toon de begindatum van de reeks.
+  form.date.value = ev?.startDate || ev?.date || state.selected;
   form.time.value = ev?.time || '';
   form.endTime.value = ev?.endTime || '';
   form.notes.value = ev?.notes || '';
+  form.freq.value = ev?.repeat?.freq || '';
+  form.until.value = ev?.repeat?.until || '';
+  repeatDays = new Set(ev?.repeat?.days || []);
+  updateRepeatFields();
   $('#eventDialog').showModal();
   if (!ev && matchMedia('(pointer: fine)').matches) form.title.focus();
 }
+
+$('#eventForm').freq.addEventListener('change', updateRepeatFields);
 
 $('#eventForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
   const who = getEventWho();
   if (!who.shared && !who.persons.length) return showError(form, 'Kies voor wie deze activiteit is.');
-  const data = { ...Object.fromEntries(new FormData(form)), ...who, createdBy: state.me };
+  const { title, date, time, endTime, notes, freq, until } = Object.fromEntries(new FormData(form));
+  const data = {
+    title, date, time, endTime, notes, ...who,
+    repeat: freq ? { freq, until, days: [...repeatDays] } : null,
+  };
   try {
     if (state.editing) await api('PUT', `/api/events/${state.editing.id}`, data);
     else await api('POST', '/api/events', data);
     $('#eventDialog').close();
-    state.selected = data.date;
-    state.month = startOfMonth(fromKey(data.date));
+    if (!state.editing) {
+      state.selected = data.date;
+      state.month = startOfMonth(fromKey(data.date));
+    }
     await loadEvents();
   } catch (err) {
     showError(form, err.message);
@@ -328,11 +451,26 @@ $('#eventDelete').addEventListener('click', async () => {
   if (await removeEvent(state.editing)) $('#eventDialog').close();
 });
 
+// Vraag bij een herhalende activiteit of alleen deze keer of de hele reeks weg moet.
+function askRepeatDelete() {
+  const dialog = $('#repeatDeleteDialog');
+  dialog.returnValue = 'cancel';
+  dialog.showModal();
+  return new Promise((resolve) => dialog.addEventListener('close', () => resolve(dialog.returnValue), { once: true }));
+}
+
 async function removeEvent(ev) {
-  const what = ev.type === 'spraak' ? 'dit spraakbericht' : `"${ev.title}"`;
-  if (!confirm(`Weet je zeker dat je ${what} wilt verwijderen?`)) return false;
+  let url = `/api/events/${ev.id}`;
+  if (ev.repeat) {
+    const choice = await askRepeatDelete();
+    if (choice === 'cancel') return false;
+    if (choice === 'once') url += `?date=${ev.date}`;
+  } else {
+    const what = ev.type === 'spraak' ? 'dit spraakbericht' : `"${ev.title}"`;
+    if (!confirm(`Weet je zeker dat je ${what} wilt verwijderen?`)) return false;
+  }
   try {
-    await api('DELETE', `/api/events/${ev.id}`);
+    await api('DELETE', url);
     await loadEvents();
     return true;
   } catch (err) {
@@ -459,7 +597,6 @@ $('#voiceForm').addEventListener('submit', async (e) => {
     title: form.title.value,
     duration: String(Math.round(rec.duration)),
     shared: who.shared ? '1' : '0',
-    createdBy: state.me || '',
   });
   who.persons.forEach((id) => params.append('person', id));
   const type = (rec.blob.type || 'audio/webm').split(';')[0];
@@ -481,17 +618,26 @@ $('#voiceDialog').addEventListener('close', () => {
   stopStream();
 });
 
-// ---------- Gezinsleden ----------
+// ---------- Gezinsleden beheren (alleen beheerders) ----------
 
-function familyRow(m = { id: '', name: '', color: '#868e96' }) {
+function familyRow(m = { id: '', name: '', color: '#868e96', admin: false, hasPin: false }) {
   const li = el('li', { 'data-id': m.id },
-    el('input', { type: 'color', value: m.color, 'aria-label': 'Kleur' }),
-    el('input', { type: 'text', value: m.name, placeholder: 'Naam', maxlength: '60' }),
-    el('button', { type: 'button', class: 'danger', 'aria-label': 'Verwijderen', onclick: () => li.remove() }, '✕'));
+    el('div', { class: 'family-main' },
+      el('input', { type: 'color', value: m.color, 'aria-label': 'Kleur' }),
+      el('input', { type: 'text', class: 'name', value: m.name, placeholder: 'Naam', maxlength: '60' }),
+      m.id === state.me ? null
+        : el('button', { type: 'button', class: 'danger', 'aria-label': 'Verwijderen', onclick: () => li.remove() }, '✕')),
+    el('div', { class: 'family-options' },
+      el('label', { class: 'check' },
+        el('input', { type: 'checkbox', class: 'admin', checked: m.admin, disabled: m.id === state.me }), 'Beheerder'),
+      m.hasPin && m.id !== state.me
+        ? el('label', { class: 'check' }, el('input', { type: 'checkbox', class: 'reset' }), 'Pincode wissen')
+        : null));
   return li;
 }
 
 $('#familyBtn').addEventListener('click', () => {
+  $('#meDialog').close();
   showError($('#familyForm'));
   $('#familyList').replaceChildren(...state.family.map(familyRow));
   $('#familyDialog').showModal();
@@ -500,7 +646,7 @@ $('#familyBtn').addEventListener('click', () => {
 $('#familyAdd').addEventListener('click', () => {
   const row = familyRow();
   $('#familyList').append(row);
-  row.querySelector('input[type=text]').focus();
+  row.querySelector('input.name').focus();
 });
 
 $('#familyForm').addEventListener('submit', async (e) => {
@@ -508,13 +654,14 @@ $('#familyForm').addEventListener('submit', async (e) => {
   const members = [...$('#familyList').children].map((li) => ({
     id: li.dataset.id || undefined,
     color: li.querySelector('input[type=color]').value,
-    name: li.querySelector('input[type=text]').value.trim(),
+    name: li.querySelector('input.name').value.trim(),
+    admin: li.querySelector('input.admin').checked,
+    resetPin: !!li.querySelector('input.reset')?.checked,
   })).filter((m) => m.name);
   try {
     state.family = await api('PUT', '/api/family', members);
     $('#familyDialog').close();
-    if ($('#meDialog').open) openMeDialog();
-    render();
+    await loadEvents();
   } catch (err) {
     showError(e.target, err.message);
   }
@@ -525,11 +672,12 @@ $('#familyForm').addEventListener('submit', async (e) => {
 document.querySelectorAll('[data-close]').forEach((b) =>
   b.addEventListener('click', () => b.closest('dialog').close()));
 
+const loggedIn = (fn) => () => (state.me ? fn() : openMeDialog());
 $('#prev').addEventListener('click', () => changeMonth(-1));
 $('#next').addEventListener('click', () => changeMonth(1));
 $('#today').addEventListener('click', () => selectDay(toKey(new Date())));
-$('#addEvent').addEventListener('click', () => openEventDialog());
-$('#addVoice').addEventListener('click', openVoiceDialog);
+$('#addEvent').addEventListener('click', loggedIn(() => openEventDialog()));
+$('#addVoice').addEventListener('click', loggedIn(openVoiceDialog));
 
 // Veeg naar links of rechts over de kalender om van maand te wisselen.
 let touchStart = null;
@@ -546,7 +694,7 @@ $('#grid').addEventListener('touchend', (e) => {
 
 // Ververs regelmatig, en zodra de app weer geopend wordt, zodat je ziet wat de anderen hebben toegevoegd.
 const refresh = () => {
-  if (!document.hidden && !document.querySelector('dialog[open]')) loadEvents().catch(() => {});
+  if (state.me && !document.hidden && !document.querySelector('dialog[open]')) loadEvents().catch(() => {});
 };
 setInterval(refresh, 30000);
 document.addEventListener('visibilitychange', refresh);
@@ -557,8 +705,10 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
   try {
     state.family = await api('GET', '/api/family');
     if (state.filter !== 'all' && !member(state.filter)) state.filter = 'all';
+    const me = await fetch('/api/me').then((r) => (r.ok ? r.json() : null));
+    state.me = me?.id || null;
     await loadEvents();
-    if (!member(state.me)) openMeDialog();
+    if (!state.me) openMeDialog();
   } catch (err) {
     $('#dayList').replaceChildren(el('li', { class: 'empty' }, 'Kan de agenda niet laden: ' + err.message));
   }

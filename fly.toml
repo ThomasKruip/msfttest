@@ -1,0 +1,33 @@
+# Instellingen voor Fly.io. Kies bij `fly launch` een eigen, unieke app-naam.
+app = "gezinsagenda"
+primary_region = "ams"
+
+[build]
+
+[env]
+  PORT = "8080"
+  DATA_DIR = "/data"
+  NO_TLS = "1"
+
+# Blijvende schijf voor afspraken, gezinsleden en spraakberichten.
+[mounts]
+  source = "agenda_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "60s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

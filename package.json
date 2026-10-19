@@ -1,0 +1,14 @@
+{
+  "name": "gezinsagenda",
+  "version": "1.0.0",
+  "description": "Gezinsagenda met afspraken en gesproken berichten",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

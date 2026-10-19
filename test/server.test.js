@@ -26,7 +26,12 @@ after(() => {
   fs.rmSync(process.env.DATA_DIR, { recursive: true, force: true });
 });
 
-const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const json = (method, body, lid) => ({
+  method,
+  headers: { 'Content-Type': 'application/json', ...(lid ? { 'X-Gezinslid': lid } : {}) },
+  body: JSON.stringify(body),
+});
+const remove = (id, lid) => fetch(`${base}/api/events/${id}`, { method: 'DELETE', headers: { 'X-Gezinslid': lid } });
 
 test('standaard zijn er vier gezinsleden', async () => {
   const family = await (await fetch(`${base}/api/family`)).json();
@@ -77,13 +82,40 @@ test('afspraak bewerken houdt de maker en verwijderen werkt', async () => {
   }))).json();
 
   const updated = await (await fetch(`${base}/api/events/${ev.id}`,
-    json('PUT', { time: '10:00', createdBy: 'lid4', shared: true }))).json();
+    json('PUT', { time: '10:00', createdBy: 'lid4', shared: true }, 'lid2'))).json();
   assert.strictEqual(updated.time, '10:00');
   assert.strictEqual(updated.shared, true);
   assert.strictEqual(updated.createdBy, 'lid2');
 
-  const res = await fetch(`${base}/api/events/${ev.id}`, { method: 'DELETE' });
+  const res = await remove(ev.id, 'lid2');
   assert.strictEqual(res.status, 204);
+});
+
+test('alleen de maker mag een item bewerken of verwijderen', async () => {
+  const ev = await (await fetch(`${base}/api/events`, json('POST', {
+    title: 'Pianoles', date: '2026-10-23', persons: ['lid4'], createdBy: 'lid4',
+  }))).json();
+
+  let res = await fetch(`${base}/api/events/${ev.id}`, json('PUT', { title: 'Gehackt' }, 'lid3'));
+  assert.strictEqual(res.status, 403);
+  assert.match((await res.json()).error, /Alleen Kind 2/);
+
+  res = await fetch(`${base}/api/events/${ev.id}`, json('PUT', { title: 'Gehackt' }));
+  assert.strictEqual(res.status, 403);
+
+  res = await remove(ev.id, 'lid1');
+  assert.strictEqual(res.status, 403);
+
+  const list = await (await fetch(`${base}/api/events?from=2026-10-23&to=2026-10-23`)).json();
+  assert.strictEqual(list[0].title, 'Pianoles');
+
+  res = await remove(ev.id, 'lid4');
+  assert.strictEqual(res.status, 204);
+});
+
+test('items zonder maker (van vóór deze versie) mag iedereen aanpassen', async () => {
+  const res = await fetch(`${base}/api/events/oud1`, json('PUT', { title: 'Oud (aangepast)' }, 'lid3'));
+  assert.strictEqual(res.status, 200);
 });
 
 test('ongeldige afspraak wordt geweigerd', async () => {
@@ -115,7 +147,10 @@ test('spraakbericht opslaan en afspelen', async () => {
   assert.strictEqual(res.status, 206);
   assert.strictEqual(await res.text(), 'nep');
 
-  await fetch(`${base}/api/events/${ev.id}`, { method: 'DELETE' });
+  res = await remove(ev.id, 'lid4');
+  assert.strictEqual(res.status, 403);
+  res = await remove(ev.id, 'lid1');
+  assert.strictEqual(res.status, 204);
   await new Promise((r) => setTimeout(r, 50));
   assert.ok(!fs.existsSync(path.join(process.env.DATA_DIR, 'audio', ev.audio)));
 });

@@ -63,10 +63,19 @@ function isVisible(ev) {
   return state.filter === 'all' || ev.shared || ev.persons.includes(state.filter);
 }
 
-async function api(method, url, body, headers) {
+// Alleen wie een item heeft ingevoerd mag het aanpassen (de server controleert dit ook).
+// Items van een verwijderd gezinslid mag iedereen aanpassen.
+function isMine(ev) {
+  return ev.createdBy === state.me || !member(ev.createdBy);
+}
+
+async function api(method, url, body, headers = {}) {
   const res = await fetch(url, {
     method,
-    headers: body && !(body instanceof Blob) ? { 'Content-Type': 'application/json' } : headers,
+    headers: {
+      ...(body && !(body instanceof Blob) ? { 'Content-Type': 'application/json' } : headers),
+      'X-Gezinslid': state.me || '',
+    },
     body: body instanceof Blob ? body : body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 204) return null;
@@ -186,7 +195,8 @@ function renderDay() {
       e.type === 'spraak' && e.duration ? `🎤 ${formatDuration(e.duration)}` : null,
       e.createdBy ? `door ${memberName(e.createdBy)}` : null,
     ].filter(Boolean).join(' · ');
-    const editable = e.type === 'afspraak';
+    const mine = isMine(e);
+    const editable = mine && e.type === 'afspraak';
     list.append(el('li', {
       class: 'item' + (editable ? ' editable' : ''),
       style: { '--c': colorsOf(e)[0] },
@@ -197,9 +207,10 @@ function renderDay() {
           el('div', { class: 'item-title' }, (e.type === 'spraak' ? '🎤 ' : '') + e.title),
           el('div', { class: 'item-meta' }, meta)),
         el('div', { class: 'item-buttons' },
-          editable
-            ? el('button', { 'aria-label': 'Bewerken' }, '✏️')
-            : el('button', { 'aria-label': 'Verwijderen', onclick: () => removeEvent(e) }, '🗑️'))),
+          !mine ? null
+            : editable
+              ? el('button', { 'aria-label': 'Bewerken' }, '✏️')
+              : el('button', { 'aria-label': 'Verwijderen', onclick: () => removeEvent(e) }, '🗑️'))),
       el('div', { class: 'item-who' }, whoLine(e)),
       e.notes ? el('p', { class: 'item-notes' }, e.notes) : null,
       e.audio ? el('audio', { controls: '', preload: 'none', src: `/audio/${e.audio}` }) : null));

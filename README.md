@@ -11,7 +11,8 @@ Een gedeelde agenda voor het hele gezin, gemaakt om op de telefoon te gebruiken.
 - **Filter per persoon:** bovenaan tik je op een naam om alleen diens activiteiten
   (plus de gezamenlijke) te zien.
 - Elk gezinslid heeft een eigen **kleur**; gezamenlijke activiteiten zijn oranje.
-- Bij elk item staat **wie het heeft ingevoerd**.
+- Bij elk item staat **wie het heeft ingevoerd**. Alleen die persoon kan het
+  **bewerken of verwijderen**; de anderen kunnen het wel zien en beluisteren.
 
 Standaard zijn er vier gezinsleden (Papa, Mama, Kind 1, Kind 2). Namen en kleuren
 pas je aan via de ronde knop rechtsboven → *Namen en kleuren aanpassen*.
@@ -55,7 +56,7 @@ Herhaal dit op de telefoon van elk gezinslid.
 ## Gebruik
 
 - Tik op een dag om te zien wat er die dag gepland staat. Veeg over de kalender om van maand te wisselen.
-- **+ Activiteit**: wat, voor wie, datum en tijd. Tik later op een activiteit om hem te bewerken of te verwijderen.
+- **+ Activiteit**: wat, voor wie, datum en tijd. Tik later op een eigen activiteit om hem te bewerken of te verwijderen.
 - **🎤 Spraakbericht**: kies voor wie, druk op de rode knop, spreek in, druk nogmaals om te stoppen,
   luister terug en tik op *Opslaan*.
 - Tik rechtsboven op je eigen letter om van gezinslid te wisselen.

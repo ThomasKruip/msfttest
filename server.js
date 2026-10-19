@@ -201,6 +201,12 @@ async function handleApi(req, res, url) {
   if (parts[1] === 'events' && parts.length === 3) {
     const idx = events.findIndex((e) => e.id === parts[2]);
     if (idx === -1) return send(res, 404, { error: 'Niet gevonden' });
+    // Alleen wie een item heeft ingevoerd mag het bewerken of verwijderen. Items zonder (bestaande)
+    // maker, bijvoorbeeld van een verwijderd gezinslid, mag iedereen aanpassen.
+    const owner = family.find((m) => m.id === events[idx].createdBy);
+    if (owner && req.headers['x-gezinslid'] !== owner.id) {
+      return send(res, 403, { error: `Alleen ${owner.name} kan dit aanpassen of verwijderen.` });
+    }
     if (req.method === 'PUT') {
       // De maker van een item blijft altijd dezelfde.
       const input = { ...events[idx], ...(await readJsonBody(req)), createdBy: events[idx].createdBy };

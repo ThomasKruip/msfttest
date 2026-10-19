@@ -4,6 +4,7 @@
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -12,14 +13,15 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const AUDIO_DIR = path.join(DATA_DIR, 'audio');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const FAMILY_FILE = path.join(DATA_DIR, 'family.json');
+const CERT_DIR = path.join(DATA_DIR, 'cert');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
 
 const DEFAULT_FAMILY = [
-  { name: 'Papa', color: '#2f6fde' },
-  { name: 'Mama', color: '#d6336c' },
-  { name: 'Kind', color: '#2b9348' },
-  { name: 'Iedereen', color: '#f08c00' },
+  { id: 'lid1', name: 'Papa', color: '#2f6fde' },
+  { id: 'lid2', name: 'Mama', color: '#d6336c' },
+  { id: 'lid3', name: 'Kind 1', color: '#2b9348' },
+  { id: 'lid4', name: 'Kind 2', color: '#7048e8' },
 ];
 
 const MIME = {
@@ -28,6 +30,7 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.png': 'image/png',
   '.webmanifest': 'application/manifest+json',
 };
 
@@ -65,12 +68,28 @@ function writeJson(file, value) {
   fs.renameSync(tmp, file);
 }
 
-let events = readJson(EVENTS_FILE, []);
+let family = readJson(FAMILY_FILE, DEFAULT_FAMILY).map((m, i) => ({ id: m.id || `lid${i + 1}`, ...m }));
+let events = readJson(EVENTS_FILE, []).map(migrateEvent);
 const saveEvents = () => writeJson(EVENTS_FILE, events);
+
+// Oudere versies bewaarden één naam in `person`; nu zijn het gezinslid-id's in `persons`.
+function migrateEvent(ev) {
+  if (Array.isArray(ev.persons)) return ev;
+  const { person, ...rest } = ev;
+  const member = family.find((m) => m.name === person);
+  return {
+    ...rest,
+    persons: member ? [member.id] : [],
+    shared: person === 'Iedereen',
+    createdBy: rest.createdBy || '',
+  };
+}
 
 const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
 const isTime = (s) => s === '' || (typeof s === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s));
 const clean = (s, max) => (typeof s === 'string' ? s.trim().slice(0, max) : '');
+const memberIds = (list) =>
+  [...new Set((Array.isArray(list) ? list : []).filter((id) => family.some((m) => m.id === id)))];
 
 function validateEvent(input) {
   const ev = {
@@ -78,11 +97,18 @@ function validateEvent(input) {
     time: input.time ?? '',
     endTime: input.endTime ?? '',
     title: clean(input.title, 200),
-    person: clean(input.person, 60),
     notes: clean(input.notes, 2000),
+    shared: input.shared === true || input.shared === '1',
+    persons: memberIds(input.persons),
+    createdBy: memberIds([input.createdBy])[0] || '',
   };
   if (!isDate(ev.date)) return { error: 'Ongeldige datum' };
   if (!isTime(ev.time) || !isTime(ev.endTime)) return { error: 'Ongeldige tijd' };
+  if (ev.shared) ev.persons = [];
+  else if (!ev.persons.length) {
+    if (!ev.createdBy) return { error: 'Kies voor wie deze activiteit is' };
+    ev.persons = [ev.createdBy];
+  }
   return { ev };
 }
 
@@ -124,7 +150,7 @@ async function readJsonBody(req) {
 
 function sortEvents(list) {
   return list.slice().sort((a, b) =>
-    (a.date + (a.time || '99:99')).localeCompare(b.date + (b.time || '99:99'))
+    (a.date + (a.time || '00:00')).localeCompare(b.date + (b.time || '00:00'))
   );
 }
 
@@ -136,16 +162,19 @@ async function handleApi(req, res, url) {
   const parts = url.pathname.split('/').filter(Boolean); // ['api', ...]
 
   if (parts[1] === 'family') {
-    if (req.method === 'GET') return send(res, 200, readJson(FAMILY_FILE, DEFAULT_FAMILY));
+    if (req.method === 'GET') return send(res, 200, family);
     if (req.method === 'PUT') {
       const body = await readJsonBody(req);
       if (!Array.isArray(body)) return send(res, 400, { error: 'Verwacht een lijst' });
-      const family = body
+      const updated = body
         .map((m) => ({
+          id: typeof m.id === 'string' && /^[\w-]{1,40}$/.test(m.id) ? m.id : 'lid-' + crypto.randomUUID().slice(0, 8),
           name: clean(m.name, 60),
           color: /^#[0-9a-f]{6}$/i.test(m.color) ? m.color : '#868e96',
         }))
         .filter((m) => m.name);
+      if (!updated.length) return send(res, 400, { error: 'Er moet minstens één gezinslid zijn' });
+      family = updated;
       writeJson(FAMILY_FILE, family);
       return send(res, 200, family);
     }
@@ -173,7 +202,9 @@ async function handleApi(req, res, url) {
     const idx = events.findIndex((e) => e.id === parts[2]);
     if (idx === -1) return send(res, 404, { error: 'Niet gevonden' });
     if (req.method === 'PUT') {
-      const { ev, error } = validateEvent({ ...events[idx], ...(await readJsonBody(req)) });
+      // De maker van een item blijft altijd dezelfde.
+      const input = { ...events[idx], ...(await readJsonBody(req)), createdBy: events[idx].createdBy };
+      const { ev, error } = validateEvent(input);
       if (error) return send(res, 400, { error });
       if (events[idx].type === 'afspraak' && !ev.title) return send(res, 400, { error: 'Titel is verplicht' });
       events[idx] = { ...events[idx], ...ev, updatedAt: new Date().toISOString() };
@@ -193,12 +224,15 @@ async function handleApi(req, res, url) {
     const mime = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
     const ext = AUDIO_EXT[mime];
     if (!ext) return send(res, 415, { error: 'Onbekend audioformaat: ' + (mime || 'leeg') });
+    const q = url.searchParams;
     const { ev, error } = validateEvent({
-      date: url.searchParams.get('date'),
-      time: url.searchParams.get('time') || '',
-      title: url.searchParams.get('title') || '',
-      person: url.searchParams.get('person') || '',
-      notes: url.searchParams.get('notes') || '',
+      date: q.get('date'),
+      time: q.get('time') || '',
+      title: q.get('title') || '',
+      notes: q.get('notes') || '',
+      shared: q.get('shared'),
+      persons: q.getAll('person'),
+      createdBy: q.get('createdBy'),
     });
     if (error) return send(res, 400, { error });
     const audio = await readBody(req, MAX_AUDIO_BYTES);
@@ -206,7 +240,7 @@ async function handleApi(req, res, url) {
     const id = crypto.randomUUID();
     const file = id + ext;
     fs.writeFileSync(path.join(AUDIO_DIR, file), audio);
-    const duration = Number(url.searchParams.get('duration'));
+    const duration = Number(q.get('duration'));
     const created = {
       id,
       type: 'spraak',
@@ -224,10 +258,10 @@ async function handleApi(req, res, url) {
   return send(res, 404, { error: 'Onbekende API-route' });
 }
 
-function serveFile(req, res, file, contentType) {
+function serveFile(req, res, file, contentType, extraHeaders = {}) {
   fs.stat(file, (err, stat) => {
     if (err || !stat.isFile()) return send(res, 404, 'Niet gevonden');
-    const headers = { 'Content-Type': contentType, 'Accept-Ranges': 'bytes' };
+    const headers = { 'Content-Type': contentType, 'Accept-Ranges': 'bytes', ...extraHeaders };
     // Range-ondersteuning is nodig om audio te kunnen afspelen in Safari/iOS.
     const range = /bytes=(\d*)-(\d*)/.exec(req.headers.range || '');
     if (range) {
@@ -257,13 +291,13 @@ async function handler(req, res) {
       const name = path.basename(url.pathname);
       const type = AUDIO_MIME[path.extname(name)];
       if (!type) return send(res, 404, 'Niet gevonden');
-      return serveFile(req, res, path.join(AUDIO_DIR, name), type);
+      return serveFile(req, res, path.join(AUDIO_DIR, name), type, { 'Cache-Control': 'max-age=31536000, immutable' });
     }
 
     const rel = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
     const file = path.join(PUBLIC_DIR, rel);
     if (!file.startsWith(PUBLIC_DIR + path.sep)) return send(res, 403, 'Verboden');
-    serveFile(req, res, file, MIME[path.extname(file)] || 'application/octet-stream');
+    serveFile(req, res, file, MIME[path.extname(file)] || 'application/octet-stream', { 'Cache-Control': 'no-cache' });
   } catch (err) {
     if (!res.headersSent) send(res, err.status || 500, { error: err.status ? err.message : 'Serverfout' });
     if (!err.status) console.error(err);
@@ -271,20 +305,31 @@ async function handler(req, res) {
 }
 
 // Microfoontoegang in de browser werkt alleen via https of op localhost.
-// Geef TLS_CERT en TLS_KEY op om de agenda via https in het thuisnetwerk aan te bieden.
-const server =
-  process.env.TLS_CERT && process.env.TLS_KEY
-    ? https.createServer(
-        { cert: fs.readFileSync(process.env.TLS_CERT), key: fs.readFileSync(process.env.TLS_KEY) },
-        handler
-      )
-    : http.createServer(handler);
+// Met `npm run certificaat` wordt een certificaat in data/cert gemaakt; dat wordt dan automatisch gebruikt.
+// Je kunt ook zelf een certificaat opgeven met TLS_CERT en TLS_KEY.
+function tlsOptions() {
+  const cert = process.env.TLS_CERT || path.join(CERT_DIR, 'cert.pem');
+  const key = process.env.TLS_KEY || path.join(CERT_DIR, 'key.pem');
+  if (!fs.existsSync(cert) || !fs.existsSync(key)) return null;
+  return { cert: fs.readFileSync(cert), key: fs.readFileSync(key) };
+}
+
+function lanAddresses() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((a) => a && a.family === 'IPv4' && !a.internal)
+    .map((a) => a.address);
+}
 
 if (require.main === module) {
+  const tls = tlsOptions();
+  const server = tls ? https.createServer(tls, handler) : http.createServer(handler);
+  const proto = tls ? 'https' : 'http';
   server.listen(PORT, () => {
-    const proto = server instanceof https.Server ? 'https' : 'http';
     console.log(`Gezinsagenda draait op ${proto}://localhost:${PORT}`);
+    for (const ip of lanAddresses()) console.log(`Op de telefoon (zelfde wifi): ${proto}://${ip}:${PORT}`);
+    if (!tls) console.log('Tip: voer `npm run certificaat` uit om op telefoons ook spraakberichten op te kunnen nemen.');
   });
 }
 
-module.exports = { server };
+module.exports = { handler, lanAddresses, CERT_DIR };

@@ -2,9 +2,16 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#2f6fde">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Agenda">
   <title>Gezinsagenda</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,9 +23,11 @@
     </div>
     <div class="actions">
       <button id="today" class="ghost">Vandaag</button>
-      <button id="familyBtn" class="ghost">Gezin</button>
+      <button id="meBtn" class="avatar big" aria-label="Wissel van gezinslid"></button>
     </div>
   </header>
+
+  <nav id="filters" class="filters" aria-label="Laat agenda zien van"></nav>
 
   <main>
     <section class="calendar">
@@ -26,36 +35,48 @@
         <span>ma</span><span>di</span><span>wo</span><span>do</span><span>vr</span><span>za</span><span>zo</span>
       </div>
       <div id="grid" class="grid"></div>
-      <div id="legend" class="legend"></div>
     </section>
 
     <section class="day">
-      <div class="day-head">
-        <h2 id="dayTitle"></h2>
-        <div class="day-buttons">
-          <button id="addEvent" class="primary">+ Afspraak</button>
-          <button id="addVoice" class="voice">🎤 Spraakbericht</button>
-        </div>
-      </div>
+      <h2 id="dayTitle"></h2>
       <ul id="dayList" class="day-list"></ul>
+      <div class="action-bar">
+        <button id="addEvent" class="primary">+ Activiteit</button>
+        <button id="addVoice" class="voice">🎤 Spraakbericht</button>
+      </div>
     </section>
   </main>
 
-  <!-- Afspraak toevoegen / bewerken -->
+  <!-- Wie ben jij? -->
+  <dialog id="meDialog">
+    <form method="dialog">
+      <h3>Wie ben jij?</h3>
+      <p class="hint">Kies je naam. Deze telefoon onthoudt dat, zodat jouw activiteiten automatisch op jouw naam komen.</p>
+      <div id="meList" class="me-list"></div>
+      <button type="button" id="familyBtn" class="link">Namen en kleuren aanpassen</button>
+    </form>
+  </dialog>
+
+  <!-- Activiteit toevoegen / bewerken -->
   <dialog id="eventDialog">
     <form id="eventForm" method="dialog">
-      <h3 id="eventDialogTitle">Nieuwe afspraak</h3>
-      <label>Titel <input name="title" required maxlength="200" placeholder="bv. Tandarts"></label>
+      <h3 id="eventDialogTitle">Nieuwe activiteit</h3>
+      <label>Wat <input name="title" required maxlength="200" placeholder="bv. Voetbaltraining"></label>
+      <fieldset class="who-field">
+        <legend>Voor wie</legend>
+        <div class="who"></div>
+      </fieldset>
       <label>Datum <input name="date" type="date" required></label>
       <div class="row">
         <label>Van <input name="time" type="time"></label>
         <label>Tot <input name="endTime" type="time"></label>
       </div>
-      <label>Voor wie <select name="person"></select></label>
-      <label>Notities <textarea name="notes" rows="3" maxlength="2000"></textarea></label>
+      <label>Notities <textarea name="notes" rows="2" maxlength="2000"></textarea></label>
       <p class="error" hidden></p>
       <div class="dialog-buttons">
-        <button type="button" value="cancel" class="ghost" data-close>Annuleren</button>
+        <button type="button" id="eventDelete" class="danger" hidden>Verwijderen</button>
+        <span class="spacer"></span>
+        <button type="button" class="ghost" data-close>Annuleren</button>
         <button type="submit" class="primary">Opslaan</button>
       </div>
     </form>
@@ -65,10 +86,13 @@
   <dialog id="voiceDialog">
     <form id="voiceForm" method="dialog">
       <h3>Spraakbericht</h3>
-      <label>Datum <input name="date" type="date" required></label>
+      <fieldset class="who-field">
+        <legend>Voor wie</legend>
+        <div class="who"></div>
+      </fieldset>
       <div class="row">
-        <label>Tijd (optioneel) <input name="time" type="time"></label>
-        <label>Van wie / voor wie <select name="person"></select></label>
+        <label>Datum <input name="date" type="date" required></label>
+        <label>Tijd <input name="time" type="time"></label>
       </div>
       <label>Onderwerp (optioneel) <input name="title" maxlength="200" placeholder="bv. Boodschappen"></label>
 
@@ -80,12 +104,13 @@
         </div>
       </div>
       <audio id="recPreview" controls hidden></audio>
-      <label class="upload">Of kies een geluidsbestand
-        <input id="recFile" type="file" accept="audio/*" capture>
+      <label class="upload">Of kies een spraakmemo
+        <input id="recFile" type="file" accept="audio/*">
       </label>
 
       <p class="error" hidden></p>
       <div class="dialog-buttons">
+        <span class="spacer"></span>
         <button type="button" class="ghost" data-close>Annuleren</button>
         <button type="submit" id="voiceSave" class="primary" disabled>Opslaan</button>
       </div>
@@ -98,7 +123,9 @@
       <h3>Gezinsleden</h3>
       <ul id="familyList" class="family-list"></ul>
       <button type="button" id="familyAdd" class="ghost">+ Gezinslid</button>
+      <p class="error" hidden></p>
       <div class="dialog-buttons">
+        <span class="spacer"></span>
         <button type="button" class="ghost" data-close>Annuleren</button>
         <button type="submit" class="primary">Opslaan</button>
       </div>

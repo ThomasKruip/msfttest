@@ -1,51 +1,65 @@
 # Gezinsagenda
 
-Een gedeelde agenda voor het hele gezin. Je kunt:
+Een gedeelde agenda voor het hele gezin, gemaakt om op de telefoon te gebruiken.
 
-- **Afspraken** toevoegen met titel, datum, begin- en eindtijd, voor wie het is en notities.
-- **Gesproken berichten** opnemen en op een willekeurige datum in de agenda zetten
-  (bijvoorbeeld een boodschappenlijstje of een herinnering voor later).
-- Per gezinslid een **kleur** instellen, zodat je in één oogopslag ziet wie wat heeft.
+- **Iedereen zijn eigen invoer:** elk gezinslid kiest op zijn eigen telefoon één keer
+  "Wie ben jij?". Nieuwe activiteiten komen dan automatisch op zijn of haar naam.
+- **Voor wie:** kies per activiteit één of meer gezinsleden, of **Gezamenlijk** voor iets
+  dat het hele gezin samen doet.
+- **Spraakberichten:** neem een bericht op en zet het op een willekeurige datum
+  (bijvoorbeeld een boodschappenlijstje of een herinnering).
+- **Filter per persoon:** bovenaan tik je op een naam om alleen diens activiteiten
+  (plus de gezamenlijke) te zien.
+- Elk gezinslid heeft een eigen **kleur**; gezamenlijke activiteiten zijn oranje.
+- Bij elk item staat **wie het heeft ingevoerd**.
 
-Alles wordt op één computer (bijv. een thuis-pc, laptop of Raspberry Pi) bewaard,
-zodat iedereen in huis dezelfde agenda ziet. Er zijn geen extra pakketten nodig.
+Standaard zijn er vier gezinsleden (Papa, Mama, Kind 1, Kind 2). Namen en kleuren
+pas je aan via de ronde knop rechtsboven → *Namen en kleuren aanpassen*.
 
-## Starten
+## Installeren
 
-Vereist: [Node.js](https://nodejs.org) versie 18 of nieuwer.
+De agenda draait op één computer thuis (pc, laptop of Raspberry Pi) die aan staat.
+Alle telefoons in hetzelfde wifi-netwerk gebruiken die. Er zijn geen extra pakketten nodig.
 
-```bash
-npm start
-```
+1. Installeer [Node.js](https://nodejs.org) (versie 18 of nieuwer).
+2. Maak eenmalig een certificaat, zodat telefoons de microfoon mogen gebruiken:
 
-Open daarna <http://localhost:3000> in de browser.
+   ```bash
+   npm run certificaat
+   ```
+
+3. Start de agenda:
+
+   ```bash
+   npm start
+   ```
+
+   Je ziet dan het adres voor de telefoons, bijvoorbeeld
+   `Op de telefoon (zelfde wifi): https://192.168.1.20:3000`.
+
+## Op de telefoon zetten
+
+1. Open het adres in de browser van de telefoon (Chrome op Android, Safari op iPhone).
+2. De eerste keer krijg je een waarschuwing over het certificaat, omdat je het zelf hebt
+   gemaakt. Kies **Geavanceerd → Doorgaan** (Android) of **Toon details → bezoek deze website** (iPhone).
+3. Kies wie je bent.
+4. Zet de agenda op je beginscherm, zodat hij werkt als een gewone app:
+   - **Android:** menu (⋮) → *Toevoegen aan startscherm*
+   - **iPhone:** deelknop → *Zet op beginscherm*
+
+Herhaal dit op de telefoon van elk gezinslid.
+
+> Zonder certificaat (`http://`) werkt alles, behalve direct opnemen in de app.
+> Je kunt dan wel een spraakmemo kiezen die je met de telefoon hebt opgenomen.
 
 ## Gebruik
 
-- Klik op een dag in de kalender om te zien wat er die dag gepland staat.
-- **+ Afspraak** voegt een agendapunt toe (dubbelklik op een dag werkt ook).
-- **🎤 Spraakbericht** opent de recorder: kies de datum, druk op de rode knop,
-  spreek je bericht in en druk nogmaals om te stoppen. Luister terug en klik op *Opslaan*.
-  Je kunt ook een bestaand geluidsbestand kiezen (bijv. een spraakmemo van je telefoon).
-- Via **Gezin** pas je de namen en kleuren van de gezinsleden aan.
-- De agenda ververst elke 30 seconden, zodat je ziet wat anderen hebben toegevoegd.
-
-## Gebruiken op telefoons in het thuisnetwerk
-
-Andere apparaten openen de agenda via het IP-adres van de computer,
-bijvoorbeeld `http://192.168.1.20:3000`.
-
-Let op: browsers staan **microfoongebruik alleen toe via https** (of op `localhost`).
-Via gewoon `http://` kun je op een telefoon dus wel afspraken zien en toevoegen, en
-een spraakmemo als bestand kiezen, maar niet direct in de pagina opnemen.
-Wil je overal direct kunnen opnemen, start de server dan met een certificaat:
-
-```bash
-# eenmalig een certificaat maken, bijvoorbeeld met mkcert (https://github.com/FiloSottile/mkcert)
-mkcert 192.168.1.20 localhost
-
-TLS_CERT=192.168.1.20+1.pem TLS_KEY=192.168.1.20+1-key.pem npm start
-```
+- Tik op een dag om te zien wat er die dag gepland staat. Veeg over de kalender om van maand te wisselen.
+- **+ Activiteit**: wat, voor wie, datum en tijd. Tik later op een activiteit om hem te bewerken of te verwijderen.
+- **🎤 Spraakbericht**: kies voor wie, druk op de rode knop, spreek in, druk nogmaals om te stoppen,
+  luister terug en tik op *Opslaan*.
+- Tik rechtsboven op je eigen letter om van gezinslid te wisselen.
+- De agenda ververst vanzelf, zodat je ziet wat de anderen hebben toegevoegd.
 
 ## Instellingen
 
@@ -53,13 +67,14 @@ TLS_CERT=192.168.1.20+1.pem TLS_KEY=192.168.1.20+1-key.pem npm start
 |------------------------|-----------|------------------------------------------------|
 | `PORT`                 | `3000`    | Poort waarop de agenda draait                  |
 | `DATA_DIR`             | `./data`  | Map waar afspraken en opnames worden bewaard   |
-| `TLS_CERT` / `TLS_KEY` | –         | Certificaat en sleutel om via https te draaien |
+| `TLS_CERT` / `TLS_KEY` | –         | Eigen certificaat en sleutel in plaats van die uit `data/cert` |
 
 ## Gegevens en back-up
 
-- Afspraken: `data/events.json`
+- Activiteiten: `data/events.json`
 - Gezinsleden: `data/family.json`
 - Spraakberichten: `data/audio/`
+- Certificaat: `data/cert/`
 
 Maak voor een back-up gewoon een kopie van de map `data`.
 

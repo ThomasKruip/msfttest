@@ -158,3 +158,69 @@ Maak voor een back-up een kopie van de map `data`. Bij Fly.io: `fly ssh sftp get
 ```bash
 npm test
 ```
+
+---
+
+# Offertetool
+
+Een hulpmiddel om snel een offerte met tarieven op te stellen in de eigen Word-huisstijl.
+De tarieven komen uit het Excel-bestand; je vinkt aan welke staffels in de offerte komen en
+vult desgewenst een indexatiepercentage in. De tool maakt er een Word-document (.docx) van.
+
+## Openen
+
+Dubbelklik op **`Offertetool openen.bat`** (of open `offertetool/index.html` in Edge of Chrome).
+Er hoeft niets geïnstalleerd te worden en er gaat niets over internet: alles gebeurt in de browser.
+
+## Werken met de tool
+
+1. **Bestanden:** kies het tarievenbestand (Excel) en het offertesjabloon (Word). De browser
+   onthoudt ze; kies alleen een nieuw bestand als de tarieven of de standaardtekst veranderen.
+   Staat in de bestandsnaam van het Excel-bestand een einddatum (zoals `Tarieven_tm_30-06-2026.xlsx`),
+   dan wordt die als *Geldig t/m* ingevuld.
+2. **Klant en geldigheid:** naam, adres, aanhef, datum en geldigheid.
+3. **Tarieven kiezen:** alle tabellen uit het Excel-bestand staan onder elkaar, per werkblad.
+   - Vink aan wat in de offerte moet.
+   - **Indexatie voor alle tarieven:** bijvoorbeeld `3,5` voor 3,5% erbij (een min-teken mag ook).
+   - Een **eigen percentage** bij een tabel gaat voor het algemene percentage.
+   - **Afronden op** hele centen, 5 of 10 cent of hele euro's.
+   - Onder *Tekst en voorbeeld* pas je de kop en de regels boven/onder de tabel aan en zie je de
+     tarieven vóór en ná indexatie. Deze teksten en keuzes worden onthouden.
+4. **Offerte maken:** zet met ↑ ↓ de tabellen in de goede volgorde en klik op *Offerte maken*.
+   Het Word-bestand komt in de map Downloads.
+
+## Het Excel-bestand
+
+De tool herkent zelf alle tabellen. Een tabel is:
+
+- een regel met alleen een **titel** (bijv. *Tarievenoverzicht Nederland 2026 …*),
+- direct daaronder een regel met **kolomkoppen**,
+- daaronder de tarieven, tot de volgende titel of het einde van het werkblad.
+
+Tabellen met kolommen als *Europallets*, *Blokpallets*, *t/m laadmeter* of *t/m kilogram* zijn
+**staffels**: alle andere kolommen (zoals *Nederland* of *Postcodes 4-7-8*) zijn prijzen en worden
+geïndexeerd. Bij een **lijst** (zoals uurtarieven of toeslagen) is de laatste kolom de prijs.
+Tekst zoals *op aanvraag* blijft gewoon staan. Verborgen werkbladen worden overgeslagen.
+
+## Het Word-sjabloon
+
+Het sjabloon is de standaardbrief met invulvelden tussen dubbele accolades, bijvoorbeeld
+`Beste {{contactpersoon}},`. Pas de tekst gewoon aan in Word; laat de velden staan.
+
+| Veld | Wordt |
+|------|-------|
+| `{{tarieven}}` | Op een eigen regel: alle aangevinkte tabellen, elk met kop. Grote staffels beginnen op een nieuwe pagina. |
+| `{{adresblok}}` | Bedrijf, t.a.v., adres, postcode en plaats onder elkaar |
+| `{{bedrijf}}` `{{tav}}` `{{adres}}` `{{postcode_plaats}}` | Losse adresgegevens |
+| `{{contactpersoon}}` | Naam na "Beste" (leeg: de t.a.v.-naam) |
+| `{{onderwerp}}` `{{afzender}}` | Onderwerpregel en ondertekening |
+| `{{datum}}` / `{{datum_kort}}` | 20 oktober 2026 / 20-10-2026 |
+| `{{geldig_van}}` `{{geldig_tm}}` | 01-01-2026; met `_lang` erachter: 1 januari 2026 |
+| `{{jaar}}` | Jaartal van *geldig van* |
+| `{{indexatie}}` | Het algemene percentage, bijv. 3,5% |
+| `{{tarief:Kooiaap}}` | Eén tarief uit een lijst in Excel, gezocht op het begin van de omschrijving, mét de indexatie van die lijst |
+
+Velden die de tool niet kent blijven staan; je krijgt dan een melding na het maken van de offerte.
+
+> Deze repository is openbaar. Excel- en Word-bestanden worden daarom door `.gitignore`
+> buiten git gehouden: bewaar het tarievenbestand en het sjabloon op je eigen computer of netwerkschijf.

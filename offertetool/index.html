@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Offertetool</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Offertetool</h1>
+    <p>Kies de tarieven, vul eventueel een indexatie in en maak de offerte in Word.</p>
+  </header>
+
+  <main>
+    <section class="stap" id="stap-bestanden">
+      <h2><span class="nr">1</span> Bestanden</h2>
+      <div class="bestanden">
+        <label class="bestand">
+          <span class="label">Tarieven (Excel)</span>
+          <span class="naam" id="excel-naam">Nog geen bestand gekozen</span>
+          <input type="file" id="excel-kies" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          <span class="knop">Kies Excel-bestand</span>
+        </label>
+        <label class="bestand">
+          <span class="label">Offertesjabloon (Word)</span>
+          <span class="naam" id="sjabloon-naam">Nog geen bestand gekozen</span>
+          <input type="file" id="sjabloon-kies" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+          <span class="knop">Kies Word-sjabloon</span>
+        </label>
+      </div>
+      <p class="hint">De gekozen bestanden worden in deze browser onthouden. Kies een nieuw bestand als de tarieven of de standaardtekst veranderen.</p>
+      <details class="uitleg">
+        <summary>Welke velden kan ik in het Word-sjabloon gebruiken?</summary>
+        <p>Typ in het sjabloon een veld tussen dubbele accolades, bijvoorbeeld <code>{{contactpersoon}}</code>. De tool vult het in.</p>
+        <table>
+          <tr><td><code>{{tarieven}}</code></td><td>Op een eigen regel: hier komen alle aangevinkte tarieftabellen.</td></tr>
+          <tr><td><code>{{adresblok}}</code></td><td>Bedrijf, t.a.v., adres en postcode/plaats onder elkaar (lege regels vallen weg).</td></tr>
+          <tr><td><code>{{bedrijf}}</code> <code>{{tav}}</code> <code>{{adres}}</code> <code>{{postcode_plaats}}</code></td><td>Losse adresgegevens.</td></tr>
+          <tr><td><code>{{contactpersoon}}</code></td><td>Naam na "Beste".</td></tr>
+          <tr><td><code>{{onderwerp}}</code> <code>{{afzender}}</code></td><td>Onderwerpregel en naam onder de brief.</td></tr>
+          <tr><td><code>{{datum}}</code> <code>{{datum_kort}}</code></td><td>Datum van de brief: "20 oktober 2026" of "20-10-2026".</td></tr>
+          <tr><td><code>{{geldig_van}}</code> <code>{{geldig_tm}}</code></td><td>Geldigheid als "01-01-2026"; met <code>_lang</code> erachter als "1 januari 2026".</td></tr>
+          <tr><td><code>{{jaar}}</code></td><td>Jaartal van "geldig van".</td></tr>
+          <tr><td><code>{{indexatie}}</code></td><td>Het algemene indexatiepercentage, bijvoorbeeld "3,5%".</td></tr>
+          <tr><td><code>{{tarief:Kooiaap}}</code></td><td>Eén los tarief uit een lijst in Excel, gezocht op het begin van de omschrijving. Krijgt de indexatie van die lijst.</td></tr>
+        </table>
+      </details>
+      <p class="fout" id="bestand-fout" hidden></p>
+    </section>
+
+    <section class="stap" id="stap-klant">
+      <h2><span class="nr">2</span> Klant en geldigheid</h2>
+      <div class="velden">
+        <label>Bedrijfsnaam <input id="v-bedrijf" autocomplete="organization"></label>
+        <label>T.a.v. <input id="v-tav" autocomplete="name"></label>
+        <label>Adres <input id="v-adres" autocomplete="street-address"></label>
+        <label>Postcode en plaats <input id="v-postcode_plaats"></label>
+        <label>Aanhef: "Beste …" <input id="v-contactpersoon" placeholder="bijv. Jan"></label>
+        <label>Onderwerp <input id="v-onderwerp"></label>
+        <label>Datum brief <input type="date" id="v-datum"></label>
+        <label>Afzender <input id="v-afzender"></label>
+        <label>Geldig van <input type="date" id="v-geldig_van"></label>
+        <label>Geldig t/m <input type="date" id="v-geldig_tm"></label>
+      </div>
+    </section>
+
+    <section class="stap" id="stap-tarieven">
+      <h2><span class="nr">3</span> Tarieven kiezen</h2>
+      <div class="algemeen">
+        <label>Indexatie voor alle tarieven
+          <span class="procent"><input id="index-algemeen" inputmode="decimal" placeholder="0"> %</span>
+        </label>
+        <label>Afronden op
+          <select id="afronding">
+            <option value="0.01">hele centen</option>
+            <option value="0.05">5 cent</option>
+            <option value="0.1">10 cent</option>
+            <option value="1">hele euro's</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">Vink aan welke tabellen in de offerte komen. Een eigen percentage bij een tabel gaat voor het algemene percentage.</p>
+      <div id="tabellen"><p class="leeg">Kies eerst een Excel-bestand met tarieven.</p></div>
+    </section>
+
+    <section class="stap" id="stap-maken">
+      <h2><span class="nr">4</span> Offerte maken</h2>
+      <p class="hint">Volgorde in de offerte:</p>
+      <ol id="volgorde"><li class="leeg">Nog geen tabellen aangevinkt.</li></ol>
+      <button id="maak" type="button" disabled>Offerte maken (Word)</button>
+      <div id="melding" hidden></div>
+    </section>
+  </main>
+
+  <script src="motor.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

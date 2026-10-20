@@ -1,3 +1,7 @@
 node_modules/
 data/
 *.pem
+# Eigen tarieven en offertes horen niet in deze (openbare) repository.
+*.xlsx
+*.xls
+*.docx

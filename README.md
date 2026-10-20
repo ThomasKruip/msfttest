@@ -48,7 +48,23 @@ de dagen aan. Tik op een herhalende activiteit om de hele reeks te bewerken. Bij
 **Verwijderen** kies je *Alleen deze keer* (bijv. een training die een keer niet doorgaat)
 of *De hele reeks*.
 
-## Installeren op een computer thuis
+## Snel starten op Windows
+
+1. Installeer [Node.js](https://nodejs.org) (de versie met **LTS** erbij).
+2. Download deze map: groene knop **Code** → **Download ZIP**, en pak het ZIP-bestand uit.
+3. Dubbelklik op:
+   - **`Agenda starten.bat`** om de agenda thuis via wifi te gebruiken. De eerste keer wordt
+     automatisch een certificaat gemaakt (daarvoor is [Git for Windows](https://git-scm.com)
+     nodig; zonder werkt alles behalve opnemen op de telefoon).
+   - **`Agenda online starten.bat`** om de agenda ook buitenshuis te gebruiken, via
+     Tailscale (zie "Manier 1" hieronder).
+
+De agenda opent vanzelf in de browser. Laat het zwarte venster open; sluit het om de agenda te stoppen.
+
+> Geeft Windows de melding "Windows heeft deze pc beschermd"? Klik op **Meer informatie** →
+> **Toch uitvoeren**. Dat komt doordat het bestand van internet komt.
+
+## Installeren met de opdrachtregel (Windows, macOS, Linux)
 
 1. Installeer [Node.js](https://nodejs.org) (versie 18 of nieuwer).
 2. Download deze map en open er een opdrachtvenster in.
@@ -70,7 +86,8 @@ De agenda en alle opnames blijven op je eigen computer; Tailscale maakt hem veil
 bereikbaar via internet. Nadeel: de computer moet aan staan.
 
 1. Maak een gratis account op <https://tailscale.com> en installeer Tailscale op de computer met de agenda.
-2. Start de agenda in online-stand: `npm run online`
+2. Op Windows: dubbelklik op **`Agenda online starten.bat`**; die doet stap 3 en 4 voor je.
+   Anders: start de agenda in online-stand met `npm run online`.
 3. Zet in een tweede opdrachtvenster de agenda open naar internet:
 
    ```bash
